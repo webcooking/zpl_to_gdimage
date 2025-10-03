@@ -10,11 +10,6 @@ This library provides **3 levels of ZPL conversion**:
 - **ZPL → Imagick** (`ZplToImagick`) - Rasterization via rsvg-convert or Imagick 
 - **ZPL → GDImage** (`ZplToGdImage`) - PNG/JPEG export
 
-**Features:**
-- Code 128 support, fonts (Noto Sans, IBM VGA)
-- Automatic rsvg-convert detection
-- Standard parameters (inches, DPI)
-
 ## Requirements
 
 - PHP 8.0 or higher
@@ -37,26 +32,6 @@ git clone https://github.com/webcooking/zpl_to_gdimage.git
 cd zpl_to_gdimage
 composer install
 ```
-
-## Architecture
-
-### For SVG generation only:
-```
-ZPL String → ZplToSvg::convert() → SVG String
-```
-
-### For raster image conversion:
-```
-ZPL String
-    ↓
-ZplToImagick::convert()  ← SVG generation + rasterization (with rsvg-convert or Imagick)
-    ↓
-ZplToGdImage::convert()  ← Uses ZplToImagick::convert() + converts to GDImage
-    ↓
-GDImage object / PNG file / JPEG file
-```
-
-**Simplified architecture**: `ZplToGdImage` now uses `ZplToImagick::convert()` directly, which automatically handles SVG generation and rasterization with the best available method (rsvg-convert or Imagick).
 
 ## Usage
 
@@ -186,36 +161,6 @@ These parameters provide consistent ZPL rendering.
 
 The `examples/` folder contains ready-to-use ZPL files and test scripts.
 
-### Available Examples
-
-#### 1. Simple Label (`simple_label.zpl`)
-Basic label with text and barcode.
-- Multi-line text
-- Separator lines
-- Code 128 barcode
-
-#### 2. Shipping Label (`shipping_label.zpl`)
-Complete shipping label with addresses.
-- FROM/TO addresses
-- Tracking number
-- Tracking barcode
-- Date stamp
-
-#### 3. Product Tag (`product_tag.zpl`)
-Product label with detailed information.
-- Product name and SKU
-- Price
-- Product barcode
-- Reverse field (white on black)
-
-#### 4. Name Badge (`name_badge.zpl`)
-Conference/event name badge.
-- Large name display
-- Job title
-- Company
-- Event information
-- Badge barcode
-
 ### Testing Examples
 
 **Test a specific example:**
@@ -308,32 +253,6 @@ Currently supports:
 - `^BCN`: Barcode Code 128
 
 More commands can be added as needed.
-
-## Output Quality
-
-**SVG Output** (`ZplToSvg::convert()` or `ZplToGdImage::toSvg()`):
-- Vector quality
-- Scalable without quality loss
-- Embedded TrueType fonts
-- Viewable in browsers
-- Suitable for web display or further processing
-
-**GDImage Output** (`ZplToGdImage::convert()`):
-- Rasterization via Imagick
-- Respects DPI settings (203, 300, or 600)
-- Font rendering from SVG
-- Returns GDImage resource for further manipulation
-
-**PNG Export** (`ZplToGdImage::toPng()`):
-- Lossless compression
-- Supports transparency
-- Suitable for archival and printing
-- Compression level: 0 (none) to 9 (max)
-
-**JPEG Export** (`ZplToGdImage::toJpeg()`):
-- Lossy compression for smaller files
-- Suitable for web display
-- Quality: 0 (worst) to 100 (best)
 
 ## Troubleshooting
 
