@@ -1,5 +1,12 @@
 <?php
 
+/**
+ * Webcooking ZplToSvg
+ *
+ * Copyright (c) 2025 Vincent Enjalbert
+ * Licensed under LGPL-3.0-or-later. See the LICENSE file for details.
+ */
+
 declare(strict_types=1);
 
 namespace Webcooking\ZplToGdImage;
@@ -23,6 +30,8 @@ class ZplToSvg
     private bool $reverseField = false;
     private int $dpi;
     private SvgBuilder $svg;
+    private string $fontRenderer = 'bitmap';
+    private ?string $fontPath = null;
 
     /**
      * Converts ZPL string to SVG.
@@ -31,24 +40,28 @@ class ZplToSvg
      * @param float $widthInches Label width in inches (default 4)
      * @param float $heightInches Label height in inches (default 6)
      * @param int $dpi Dots per inch (default 300)
+     * @param string $fontRenderer Font renderer: 'noto' (default), 'ibm-vga', or path to custom TTF file
      * @return string The SVG content.
      */
     public static function convert(
         string $zpl,
         float $widthInches = 4.0,
         float $heightInches = 6.0,
-        int $dpi = 300
+        int $dpi = 300,
+        string $fontRenderer = 'noto'
     ): string {
         $converter = new self();
-        return $converter->render($zpl, $widthInches, $heightInches, $dpi);
+        return $converter->render($zpl, $widthInches, $heightInches, $dpi, $fontRenderer);
     }
 
     /**
      * Renders ZPL to SVG string.
      */
-    private function render(string $zpl, float $widthInches, float $heightInches, int $dpi): string
+    private function render(string $zpl, float $widthInches, float $heightInches, int $dpi, string $fontRenderer = 'noto'): string
     {
         $this->dpi = $dpi;
+        $this->fontRenderer = $fontRenderer;
+        $this->fontPath = $this->resolveFontPath($fontRenderer);
 
         // Calculate pixel dimensions
         $width = (int)($widthInches * $dpi);
@@ -340,59 +353,80 @@ class ZplToSvg
     }
 
     /**
-     * Draw text to SVG using Swiss 721 font (Zebra standard).
+     * Draw text to SVG using TrueType font.
      */
     private function drawText(string $text): void
     {
-        if (empty($text)) return;
+        $this->drawTextWithTTF($text);
+    }
 
-        // ZPL ^A0N,height,width defines character cell dimensions
-        // Render text as BITMAP PIXELS instead of using font files
-        // This simulates how Zebra printers actually work
+    /**
+     * Draw text using TrueType font.
+     */
+    private function drawTextWithTTF(string $text): void
+    {
+        if (empty($text)) return;
+        if (!$this->fontPath || !file_exists($this->fontPath)) {
+            throw new \RuntimeException("Font file not found: {$this->fontPath}");
+        }
+
+        // For TTF fonts, use the ZPL font size more directly
+        // ZPL height is in dots, we scale it slightly
+        $fontSize = (int)round($this->currentFontHeight * 0.6);
         
-        // Optimized scaling: narrow width (0.35× with 22 cols), medium height (0.9×)
-        $cellWidth = (int)round($this->currentFontWidth * 0.35);
-        $cellHeight = (int)round($this->currentFontHeight * 0.9);
         $color = 'black';
+        $bgColor = null;
 
         // Handle reverse field (white text on black background)
         if ($this->reverseField) {
-            // Calculate total text width for background
-            $totalWidth = strlen($text) * $cellWidth;
+            // Calculate approximate text width (rough estimate)
+            $charWidth = $fontSize * 0.6; // Approximate
+            $totalWidth = strlen($text) * $charWidth;
             
             $this->svg->addRect(
                 $this->currentX,
                 $this->currentY,
-                $totalWidth,
-                $cellHeight,
+                (int)$totalWidth,
+                $this->currentFontHeight,
                 'black',
                 'none'
             );
             
-            // Render text as white bitmap pixels
-            BitmapFont::renderText(
-                $this->svg,
-                $text,
-                $this->currentX,
-                $this->currentY,
-                $cellWidth,
-                $cellHeight,
-                'white'
-            );
-            
+            $color = 'white';
             $this->reverseField = false;
-        } else {
-            // Render text as black bitmap pixels
-            BitmapFont::renderText(
-                $this->svg,
-                $text,
-                $this->currentX,
-                $this->currentY,
-                $cellWidth,
-                $cellHeight,
-                'black'
-            );
         }
+
+        // Add text element to SVG with font-family reference
+        $this->svg->addTextWithFont(
+            $text,
+            $this->currentX,
+            $this->currentY + $fontSize, // Adjust baseline
+            $fontSize,
+            $color,
+            $this->fontPath
+        );
+    }
+
+    /**
+     * Resolve font path from font renderer string.
+     */
+    private function resolveFontPath(string $fontRenderer): ?string
+    {
+        // If it's already a path, use it
+        if (file_exists($fontRenderer) && pathinfo($fontRenderer, PATHINFO_EXTENSION) === 'ttf') {
+            return $fontRenderer;
+        }
+
+        // Get the base fonts directory
+        $fontsDir = dirname(__DIR__) . '/fonts';
+
+        // Predefined fonts
+        $fontMap = [
+            'noto' => $fontsDir . '/Noto_Sans/NotoSans-VariableFont_wdth,wght.ttf',
+            'ibm-vga' => $fontsDir . '/IBM_VGA/Px437_IBM_VGA_8x16.ttf',
+        ];
+
+        return $fontMap[$fontRenderer] ?? null;
     }
 
     /**

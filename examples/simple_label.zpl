@@ -1,0 +1,8 @@
+^XA
+^FO50,50^A0N,50,50^FDSimple Label Test^FS
+^FO50,120^A0N,30,30^FDThis is a basic ZPL label^FS
+^FO50,160^A0N,25,25^FDWith multiple text fields^FS
+^FO50,250^GB700,3,3^FS
+^FO50,270^A0N,40,40^FDBarcode below:^FS
+^BY3^FO100,320^BCN,100,N,N,N,A^FD123456789^FS
+^XZ

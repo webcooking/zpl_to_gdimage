@@ -1,5 +1,12 @@
 <?php
 
+/**
+ * Webcooking SVG Builder
+ *
+ * Copyright (c) 2025 Vincent Enjalbert
+ * Licensed under LGPL-3.0-or-later. See the LICENSE file for details.
+ */
+
 declare(strict_types=1);
 
 namespace Webcooking\ZplToGdImage;
@@ -10,6 +17,7 @@ namespace Webcooking\ZplToGdImage;
 class SvgBuilder
 {
     private array $elements = [];
+    private array $customFonts = [];
     private int $width;
     private int $height;
 
@@ -179,6 +187,35 @@ class SvgBuilder
         }
     }
 
+    public function addTextWithFont(
+        string $text,
+        int $x,
+        int $y,
+        int $fontSize,
+        string $color = 'black',
+        string $fontPath = null
+    ): void {
+        $text = htmlspecialchars($text, ENT_XML1);
+        
+        // Generate a unique font family name based on the font file
+        $fontFamily = 'CustomFont-' . md5($fontPath ?? 'default');
+        
+        // Store font for embedding
+        if ($fontPath && file_exists($fontPath)) {
+            $this->customFonts[$fontFamily] = $fontPath;
+        }
+        
+        $this->elements[] = sprintf(
+            '<text x="%d" y="%d" font-family="%s" font-size="%d" fill="%s">%s</text>',
+            $x,
+            $y,
+            $fontFamily,
+            $fontSize,
+            $color,
+            $text
+        );
+    }
+
     public function addRect(
         int $x, 
         int $y, 
@@ -259,7 +296,21 @@ class SvgBuilder
         $fontDir = __DIR__ . '/../fonts';
         $defs = "<defs>\n<style>\n";
         
-        // Try to embed Swiss 721 fonts
+        // Embed custom fonts added via addTextWithFont
+        foreach ($this->customFonts as $fontFamily => $fontPath) {
+            if (file_exists($fontPath)) {
+                $fontData = base64_encode(file_get_contents($fontPath));
+                $extension = pathinfo($fontPath, PATHINFO_EXTENSION);
+                $mimeType = $extension === 'otf' ? 'font/opentype' : 'font/truetype';
+                
+                $defs .= "@font-face {\n";
+                $defs .= "  font-family: '{$fontFamily}';\n";
+                $defs .= "  src: url('data:{$mimeType};base64,{$fontData}');\n";
+                $defs .= "}\n";
+            }
+        }
+        
+        // Try to embed Swiss 721 fonts (legacy support)
         $fonts = [
             'Swiss721BT-Roman' => 'Swiss721BT-Roman.otf',
             'Swiss721BT-Medium' => 'Swiss721BT-Medium.otf',

@@ -1,0 +1,4 @@
+vendor
+.git
+.env
+node_modules
