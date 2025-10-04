@@ -4,7 +4,7 @@ A PHP library to convert ZPL (Zebra Programming Language) content into images. *
 
 ## Features
 
-This library provides **3 levels of ZPL conversion**:
+This library provides **3 types of ZPL conversion**:
 
 - **ZPL → SVG** (`ZplToSvg`) - Vector rendering with TrueType fonts
 - **ZPL → Imagick** (`ZplToImagick`) - Rasterization via rsvg-convert or Imagick 
@@ -142,66 +142,6 @@ $imagick->clear();
 $imagick->destroy();
 ```
 
-**Architecture Note**: `ZplToGdImage` now uses `ZplToImagick::convert()` directly, which handles both SVG generation and rasterization. This automatically benefits from rsvg-convert when available.
-
-The `ZplToImagick` class is useful when you want to manipulate the result with Imagick APIs (filters, composites, etc.) before converting to GD or saving to disk.
-
-### Parameters
-
-- `$zpl` (string): ZPL content to convert
-- `$widthInches` (float): Label width in inches (default: 4.0)
-- `$heightInches` (float): Label height in inches (default: 6.0)
-- `$dpi` (int): Dots per inch - 203, 300, or 600 (default: 300)
-- `$fontRenderer` (string): Font to use - 'noto', 'ibm-vga', or path to TTF file (default: 'noto')
-- `$quality` (int): Compression quality for PNG (0-9) or JPEG (0-100)
-
-These parameters provide consistent ZPL rendering.
-
-## Examples
-
-The `examples/` folder contains ready-to-use ZPL files and test scripts.
-
-### Testing Examples
-
-**Test a specific example:**
-```bash
-# Test with default font (Noto)
-php examples/test.php simple_label.zpl
-
-# Test with specific font
-php examples/test.php shipping_label.zpl noto
-php examples/test.php product_tag.zpl ibm-vga
-php examples/test.php name_badge.zpl /path/to/custom.ttf
-```
-
-**Test all examples at once:**
-```bash
-# Test all with Noto Sans (default)
-php examples/test_all.php
-
-# Test all with IBM VGA
-php examples/test_all.php ibm-vga
-
-# Test all with custom font
-php examples/test_all.php /path/to/custom.ttf
-```
-
-Output files are created as `examples/output_*.svg` and `examples/output_*.jpg`.
-
-### Docker Testing
-
-A Docker environment is provided for consistent testing with all dependencies:
-
-```bash
-# Build and run tests in Docker
-./docker-build-and-run.sh
-
-# Or manually:
-docker build -t php-imagick-gd .
-docker run --rm -v "$(pwd):/workspace" php-imagick-gd bash -c "cd /workspace && php examples/test_all.php"
-```
-
-The Docker environment includes `rsvg-convert` for reliable rasterization, solving potential blank image issues.
 
 ### Font Comparison
 
@@ -210,19 +150,6 @@ The Docker environment includes `rsvg-convert` for reliable rasterization, solvi
 | **Noto Sans** | Modern, clean | ~1.9 MB |
 | **IBM VGA** | Retro, pixel style | ~35 KB |
 
-### Creating Your Own Examples
-
-1. Create a `.zpl` file in the `examples/` folder
-2. Use standard ZPL commands:
-   - `^XA` ... `^XZ` - Label start/end
-   - `^FO x,y` - Field position
-   - `^A0N,h,w` - Font size (height, width)
-   - `^FD text ^FS` - Field data (text)
-   - `^GB w,h,t` - Graphic box (line or rectangle)
-   - `^BCN,h` - Code 128 barcode
-   - `^FR` - Reverse mode (white on black)
-
-3. Test it: `php examples/test.php your_file.zpl`
 
 ## Testing
 
@@ -240,6 +167,29 @@ php examples/test_all.php ibm-vga
 ```
 
 See the `examples/` folder for more details.
+
+**Creating your own tests**
+
+1. Create a `.zpl` file in the `examples/` folder
+2. Test it: `php examples/test.php your_file.zpl`
+
+
+**Docker testing**
+
+A Docker environment is provided for consistent testing with all dependencies:
+
+```bash
+# Build and run tests in Docker
+./docker-build-and-run.sh
+
+# Or manually:
+docker build -t php-imagick-gd .
+docker run --rm -v "$(pwd):/workspace" php-imagick-gd bash -c "cd /workspace && php examples/test_all.php"
+```
+
+The Docker environment includes `rsvg-convert` for reliable rasterization, solving potential blank image issues.
+
+
 
 ## Supported ZPL Commands
 
@@ -288,36 +238,6 @@ More commands can be added as needed.
    ```
 
 When `rsvg-convert` is available, the library automatically uses it for SVG rasterization, providing much better compatibility with embedded fonts and complex SVG elements. If `rsvg-convert` is not available, it falls back to direct Imagick conversion.
-
-**How automatic fallback works:**
-
-1. **With `rsvg-convert`** (recommended):
-   ```php
-   $image = ZplToGdImage::convert($zpl, 4, 6, 300); // Uses rsvg-convert automatically
-   ```
-
-2. **Without `rsvg-convert`** (fallback):
-   ```php  
-   $image = ZplToGdImage::convert($zpl, 4, 6, 300); // Falls back to Imagick (may produce white images)
-   ```
-
-**Transparent integration:** Since the recent optimization, `ZplToGdImage` calls `ZplToImagick::convert()` directly which automatically handles choosing the best renderer. No need to generate SVG separately.
-
-All methods benefit from this automatic detection:
-- `ZplToGdImage::convert()` → GDImage object (automatically uses rsvg-convert via ZplToImagick)
-- `ZplToGdImage::toPng()` → PNG file (automatically uses rsvg-convert via ZplToImagick)
-- `ZplToGdImage::toJpeg()` → JPEG file (automatically uses rsvg-convert via ZplToImagick)
-- `ZplToImagick::convert()` → Imagick object (automatic rsvg-convert detection or Imagick fallback)
-
-**Testing the fix:**
-```bash
-# Test SVG generation (should always work)
-php examples/test.php simple_label.zpl
-
-# Check if JPG contains content (not all white)
-identify -verbose examples/output_simple_label.jpg | grep "Colors:"
-# Should show "Colors: 256" or similar (not "Colors: 1")
-```
 
 ## Resources
 
